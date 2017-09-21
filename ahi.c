@@ -29,36 +29,11 @@
 #include "playcdda.h"
 
 BOOL open_ahi(struct PlayCDDAData *pcd) {
-#ifdef __amigaos4__
-	pcd->pcd_AHIPort = AllocSysObject(ASOT_PORT, NULL);
+	pcd->pcd_AHIPort = create_msgport();
 	if (pcd->pcd_AHIPort == NULL)
 		return FALSE;
 
-	pcd->pcd_AHIReq[0] = AllocSysObjectTags(ASOT_IOREQUEST,
-		ASOIOR_ReplyPort, pcd->pcd_AHIPort,
-		ASOIOR_Size,      sizeof(struct AHIRequest),
-		TAG_END);
-	if (pcd->pcd_AHIReq[0] == NULL)
-		return FALSE;
-
-	pcd->pcd_AHIReq[0]->ahir_Version = 4; /* Must be version 4 or newer */
-
-	if (OpenDevice(AHINAME, AHI_DEFAULT_UNIT, (struct IORequest *)pcd->pcd_AHIReq[0], 0) != IOERR_SUCCESS) {
-		pcd->pcd_AHIReq[0]->ahir_Std.io_Device = NULL;
-		return FALSE;
-	}
-
-	pcd->pcd_AHIReq[1] = AllocSysObjectTags(ASOT_IOREQUEST,
-		ASOIOR_Duplicate, pcd->pcd_AHIReq[0],
-		TAG_END);
-	if (pcd->pcd_AHIReq[1] == NULL)
-		return FALSE;
-#else
-	pcd->pcd_AHIPort = CreateMsgPort();
-	if (pcd->pcd_AHIPort == NULL)
-		return FALSE;
-
-	pcd->pcd_AHIReq[0] = (struct AHIRequest *)CreateIORequest(pcd->pcd_AHIPort, sizeof(struct AHIRequest));
+	pcd->pcd_AHIReq[0] = (struct AHIRequest *)create_iorequest(pcd->pcd_AHIPort, sizeof(struct AHIRequest));
 	if (pcd->pcd_AHIReq[0] == NULL)
 		return FALSE;
 
@@ -69,12 +44,9 @@ BOOL open_ahi(struct PlayCDDAData *pcd) {
 		return FALSE;
 	}
 
-	pcd->pcd_AHIReq[1] = AllocMem(sizeof(struct AHIRequest), MEMF_PUBLIC);
+	pcd->pcd_AHIReq[1] = (struct AHIRequest *)copy_iorequest((struct IORequest *)pcd->pcd_AHIReq[0]);
 	if (pcd->pcd_AHIReq[1] == NULL)
 		return FALSE;
-
-	CopyMem(pcd->pcd_AHIReq[0], pcd->pcd_AHIReq[1], sizeof(struct AHIRequest));
-#endif
 
 	pcd->pcd_Volume = 0x10000; /* Full volume */
 
@@ -84,31 +56,17 @@ BOOL open_ahi(struct PlayCDDAData *pcd) {
 void close_ahi(struct PlayCDDAData *pcd) {
 	stop_playback(pcd, TRUE);
 
-#ifdef __amigaos4__
 	if (pcd->pcd_AHIReq[1] != NULL)
-		FreeSysObject(ASOT_IOREQUEST, pcd->pcd_AHIReq[1]);
+		delete_iorequest_copy((struct IORequest *)pcd->pcd_AHIReq[1]);
 
 	if (pcd->pcd_AHIReq[0] != NULL) {
 		if (pcd->pcd_AHIReq[0]->ahir_Std.io_Device != NULL)
 			CloseDevice((struct IORequest *)pcd->pcd_AHIReq[0]);
 
-		FreeSysObject(ASOT_IOREQUEST, pcd->pcd_AHIReq[0]);
+		delete_iorequest((struct IORequest *)pcd->pcd_AHIReq[0]);
 	}
 
-	FreeSysObject(ASOT_PORT, pcd->pcd_AHIPort);
-#else
-	if (pcd->pcd_AHIReq[1] != NULL)
-		FreeMem(pcd->pcd_AHIReq[1], sizeof(struct AHIRequest));
-
-	if (pcd->pcd_AHIReq[0] != NULL) {
-		if (pcd->pcd_AHIReq[0]->ahir_Std.io_Device != NULL)
-			CloseDevice((struct IORequest *)pcd->pcd_AHIReq[0]);
-
-		DeleteIORequest((struct IORequest *)pcd->pcd_AHIReq[0]);
-	}
-
-	DeleteMsgPort(pcd->pcd_AHIPort);
-#endif
+	delete_msgport(pcd->pcd_AHIPort);
 }
 
 void play_pcm_data(struct PlayCDDAData *pcd, const WORD *pcm_data, ULONG pcm_size) {

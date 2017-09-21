@@ -10,7 +10,7 @@ LDFLAGS    := -static
 LIBS       := 
 STRIPFLAGS := --strip-unneeded -R.comment
 
-SRCS := main.c locale.c ahi.c cdrom.c gui_reaction.c gui_mui.c
+SRCS := main.c locale.c iorequest.c ahi.c cdrom.c gui_reaction.c gui_mui.c
 OBJS := $(SRCS:.c=.o)
 
 .PHONY: all

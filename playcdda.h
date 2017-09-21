@@ -116,6 +116,13 @@ BOOL open_catalog(struct PlayCDDAData *pcd, const char *catalog_name);
 void close_catalog(struct PlayCDDAData *pcd);
 const char *get_catalog_string(struct PlayCDDAData *pcd, int id, const char *builtin);
 
+struct MsgPort *create_msgport(void);
+void delete_msgport(struct MsgPort *port);
+struct IORequest *create_iorequest(struct MsgPort *port, ULONG size);
+void delete_iorequest(struct IORequest *ioreq);
+struct IORequest *copy_iorequest(const struct IORequest *original);
+void delete_iorequest_copy(struct IORequest *ioreq);
+
 BOOL open_ahi(struct PlayCDDAData *pcd);
 void close_ahi(struct PlayCDDAData *pcd);
 void play_pcm_data(struct PlayCDDAData *pcd, const WORD *pcm_data, ULONG pcm_size);
