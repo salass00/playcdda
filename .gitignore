@@ -1,5 +1,7 @@
 # Ignore object and archive files
 *.[oa]
+# Ignore generated header files
+locale.h
 # Ignore generated exe files
 PlayCDDA
 PlayCDDA.debug

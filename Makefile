@@ -16,7 +16,13 @@ OBJS := $(SRCS:.c=.o)
 .PHONY: all
 all: $(TARGET)
 
-init.o gui_reaction.o gui_mui.o: $(TARGET)_rev.h
+locale.h: $(TARGET).cd
+	catcomp $< --cfile $@
+
+init.o: $(TARGET)_rev.h
+
+gui_reaction.o gui_mui.o: $(TARGET)_rev.h locale.h
+
 $(OBJS): playcdda.h
 
 $(TARGET): $(OBJS)
