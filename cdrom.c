@@ -32,6 +32,9 @@
 #include <devices/trackdisk.h>
 #include <devices/scsidisk.h>
 #include <devices/newstyle.h>
+#ifndef __amigaos4__
+#include <clib/alib_protos.h>
+#endif
 
 #include <stdio.h>
 
@@ -226,14 +229,6 @@ static BOOL add_cdrom_drive(struct PlayCDDAData *pcd, struct List *list, const c
 
 	return TRUE;
 }
-
-#ifndef __amigaos4__
-static void NewList(struct List *list) {
-	list->lh_Head     = (struct Node *)&list->lh_Tail;
-	list->lh_Tail     = NULL;
-	list->lh_TailPred = (struct Node *)&list->lh_Head;
-}
-#endif
 
 BOOL get_cdrom_drives(struct PlayCDDAData *pcd, struct List *list) {
 	struct DosList           *dl;
