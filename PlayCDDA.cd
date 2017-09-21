@@ -1,0 +1,54 @@
+MSG_PROJECT_ABOUT (//)
+About...
+;
+MSG_PROJECT_ICONIFY (//)
+Iconify
+;
+MSG_PROJECT_QUIT (//)
+Quit
+;
+MSG_ABOUT_WND (//)
+About - %s
+;
+MSG_ABOUT_REQ (//)
+%s version %ld.%ld\n\n\
+Copyright (C) 2010-2017 Fredrik Wikstrom\n\
+Website: http://www.a500.org\n\
+E-mail: fredrik@a500.org
+;
+MSG_OK_GAD (//)
+_Ok
+;
+MSG_PLAYING (//)
+Track %02ld - %02ld:%02ld
+;
+MSG_STOPPED (//)
+Track %02ld - STOPPED
+;
+MSG_NODISC (//)
+No disc in drive
+;
+MSG_NOTRACK (//)
+No track selected
+;
+MSG_EJECT_GAD (//)
+Eject
+;
+MSG_STOP_GAD (//)
+Stop
+;
+MSG_PAUSE_GAD (//)
+Pause
+;
+MSG_PREV_GAD (//)
+Previous
+;
+MSG_PLAY_GAD (//)
+Play
+;
+MSG_NEXT_GAD (//)
+Next
+;
+MSG_VOLUME_GAD (//)
+Volume
+;
