@@ -124,6 +124,9 @@ int main(int argc, char **argv) {
 	if (!get_cdrom_drives(pcd, &pcd->pcd_CDDrives))
 		goto cleanup;
 
+	if (IsListEmpty(&pcd->pcd_CDDrives))
+		goto cleanup;
+
 	list_cdrom_drives(pcd, &pcd->pcd_CDDrives);
 
 	if (!create_gui(pcd))
