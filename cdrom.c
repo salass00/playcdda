@@ -160,8 +160,10 @@ static BOOL is_cdrom_drive(struct PlayCDDAData *pcd, const char *device, ULONG u
 	if (DoIO((struct IORequest *)ioreq) != 0)
 		goto cleanup;
 
-	if (dg.dg_DeviceType == DG_CDROM)
-		result = TRUE;
+	if (dg.dg_DeviceType != DG_CDROM)
+		goto cleanup;
+
+	result = TRUE;
 
 cleanup:
 #ifdef __amigaos4__
@@ -276,5 +278,109 @@ void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list) {
 		while ((node = RemHead(list)) != NULL)
 			free(node);
 	}
+}
+
+BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd) {
+	struct IOStdReq            *ioreq;
+	struct NSDeviceQueryResult  nsdqr;
+	struct DriveGeometry        dg;
+
+	close_cdrom_drive(pcd);
+
+#ifdef __amigaos4__
+	pcd->pcd_CDPort = AllocSysObject(ASOT_PORT, NULL);
+	if (pcd->pcd_CDPort == NULL)
+		goto cleanup;
+
+	pcd->pcd_CDReq = AllocSysObjectTags(ASOT_IOREQUEST,
+		ASOIOR_ReplyPort, pcd->pcd_CDPort,
+		ASOIOR_Size,      sizeof(struct IOStdReq),
+		TAG_END);
+	if (pcd->pcd_CDReq == NULL)
+		goto cleanup;
+#else
+	pcd->pcd_CDPort = CreateMsgPort();
+	if (pcd->pcd_CDPort == NULL)
+		goto cleanup;
+
+	pcd->pcd_CDReq = (struct IOStdReq *)CreateIORequest(pcd->pcd_CDPort, sizeof(struct IOStdReq));
+	if (pcd->pcd_CDReq == NULL)
+		goto cleanup;
+#endif
+
+	ioreq = pcd->pcd_CDReq;
+
+	if (OpenDevice((CONST_STRPTR)cdd->cdd_Device, cdd->cdd_Unit, (struct IORequest *)ioreq, cdd->cdd_Flags) != 0) {
+		ioreq->io_Device = NULL;
+		goto cleanup;
+	}
+
+	nsdqr.DevQueryFormat = 0;
+	nsdqr.SizeAvailable  = 0;
+
+	ioreq->io_Command = NSCMD_DEVICEQUERY;
+	ioreq->io_Data    = &nsdqr;
+	ioreq->io_Length  = sizeof(nsdqr);
+
+	if (DoIO((struct IORequest *)ioreq) == 0) {
+		if (nsdqr.DeviceType != NSDEVTYPE_TRACKDISK)
+			goto cleanup;
+
+		if (!has_command(nsdqr.SupportedCommands, HD_SCSICMD))
+			goto cleanup;
+	} else {
+#ifdef RELAXED_NSD_CHECK
+		if (ioreq->io_Error != IOERR_NOCMD)
+			goto cleanup;
+#else
+		goto cleanup;
+#endif
+	}
+
+	ioreq->io_Command = TD_GETGEOMETRY;
+	ioreq->io_Data    = &dg;
+	ioreq->io_Length  = sizeof(dg);
+
+	if (DoIO((struct IORequest *)ioreq) != 0)
+		goto cleanup;
+
+	if (dg.dg_DeviceType != DG_CDROM)
+		goto cleanup;
+
+	return TRUE;
+
+cleanup:
+	close_cdrom_drive(pcd);
+	return FALSE;
+}
+
+void close_cdrom_drive(struct PlayCDDAData *pcd) {
+#ifdef __amigaos4__
+	if (pcd->pcd_CDReq != NULL) {
+		if (pcd->pcd_CDReq->io_Device != NULL)
+			CloseDevice((struct IORequest *)pcd->pcd_CDReq);
+
+		FreeSysObject(ASOT_IOREQUEST, pcd->pcd_CDReq);
+		pcd->pcd_CDReq = NULL;
+	}
+
+	if (pcd->pcd_CDPort != NULL) {
+		FreeSysObject(ASOT_PORT, pcd->pcd_CDPort);
+		pcd->pcd_CDPort = NULL;
+	}
+#else
+	if (pcd->pcd_CDReq != NULL) {
+		if (pcd->pcd_CDReq->io_Device != NULL)
+			CloseDevice((struct IORequest *)pcd->pcd_CDReq);
+
+		DeleteIORequest((struct IORequest *)pcd->pcd_CDReq);
+		pcd->pcd_CDReq = NULL;
+	}
+
+	if (pcd->pcd_CDPort != NULL) {
+		DeleteMsgPort(pcd->pcd_CDPort);
+		pcd->pcd_CDPort = NULL;
+	}
+#endif
 }
 

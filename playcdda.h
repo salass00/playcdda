@@ -89,7 +89,7 @@ struct PlayCDDAData {
 	struct List         pcd_CDDrives;
 
 	struct MsgPort     *pcd_CDPort;
-	struct IoStdReq    *pcd_CDReq;
+	struct IOStdReq    *pcd_CDReq;
 
 	WORD               *pcd_PCMBuf[2];
 	UWORD              *pcd_CDDABuf[2];
@@ -123,6 +123,8 @@ void stop_playback(struct PlayCDDAData *pcd, BOOL force);
 
 BOOL get_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
+BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd);
+void close_cdrom_drive(struct PlayCDDAData *pcd);
 
 BOOL create_gui(struct PlayCDDAData *pcd);
 void destroy_gui(struct PlayCDDAData *pcd);
