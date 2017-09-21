@@ -127,6 +127,13 @@ int main(int argc, char **argv) {
 	if (IsListEmpty(&pcd->pcd_CDDrives))
 		goto cleanup;
 
+	/* Default to drive CD0: */
+	pcd->pcd_CurrentDrive = (struct CDROMDrive *)FindIName(&pcd->pcd_CDDrives, "CD0");
+
+	/* If not available use the first CD drive in the list */
+	if (pcd->pcd_CurrentDrive == NULL)
+		pcd->pcd_CurrentDrive = (struct CDROMDrive *)GetHead(&pcd->pcd_CDDrives);
+
 	if (!create_gui(pcd))
 		goto cleanup;
 

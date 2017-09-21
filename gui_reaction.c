@@ -312,7 +312,7 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 			MA_Label,    strdup(label),
 			MA_ID,       MID_PROJECT_CDROMDRIVE_01 + index,
 			MA_MX,       ~(1 << index),
-			MA_Selected, (index == 0),
+			MA_Selected, (cdd == pcd->pcd_CurrentDrive),
 			MA_UserData, cdd,
 			TAG_END);
 		if (menu_item == NULL)

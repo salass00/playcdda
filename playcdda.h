@@ -67,6 +67,13 @@
 #define CurrentDir(dir) SetCurrentDir(dir)
 #endif
 
+struct CDROMDrive {
+	struct Node  cdd_Node;
+	CONST_STRPTR cdd_Device;
+	ULONG        cdd_Unit;
+	ULONG        cdd_Flags;
+};
+
 struct PlayCDDAData {
 	struct Library     *pcd_LocaleBase;
 	struct Library     *pcd_IconBase;
@@ -87,6 +94,7 @@ struct PlayCDDAData {
 	Fixed               pcd_Volume;
 
 	struct List         pcd_CDDrives;
+	struct CDROMDrive  *pcd_CurrentDrive;
 
 	struct MsgPort     *pcd_CDPort;
 	struct IOStdReq    *pcd_CDReq;
@@ -102,13 +110,6 @@ struct PlayCDDAData {
 
 #define ILocale    (pcd->pcd_ILocale)
 #define IIcon      (pcd->pcd_IIcon)
-
-struct CDROMDrive {
-	struct Node  cdd_Node;
-	CONST_STRPTR cdd_Device;
-	ULONG        cdd_Unit;
-	ULONG        cdd_Flags;
-};
 
 extern const char verstag[];
 
