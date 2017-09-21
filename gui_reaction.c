@@ -313,13 +313,15 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 			MA_ID,       MID_PROJECT_CDROMDRIVE_01 + index,
 			MA_MX,       ~(1 << index),
 			MA_Selected, (index == 0),
+			MA_UserData, cdd,
 			TAG_END);
 		if (menu_item == NULL)
 			return FALSE;
 
 		SetAttrs(sub_menu, MA_AddChild, menu_item, TAG_END);
 
-		index++;
+		if (++index >= 32)
+			break;
 	}
 
 	NewList(&pcg->pcg_ButtonList);
