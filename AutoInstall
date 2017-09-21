@@ -1,0 +1,18 @@
+; AutoInstall script for AmiUpdate
+
+set destdir `getenv AppDir/PlayCDDA`
+
+copystore PlayCDDA-xx.xx/PlayCDDA "${destdir}"
+
+if exists "${destdir}/playcdda.readme"
+  copy clone PlayCDDA-xx.xx/playcdda.readme "${destdir}"
+endif
+
+if exists "${destdir}/releasenotes"
+  copy clone PlayCDDA-xx.xx/releasenotes "${destdir}"
+endif
+
+if exists "${destdir}/LICENSE"
+  copy clone PlayCDDA-xx.xx/LICENSE "${destdir}"
+endif
+
