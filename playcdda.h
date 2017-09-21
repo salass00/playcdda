@@ -123,7 +123,6 @@ void stop_playback(struct PlayCDDAData *pcd, BOOL force);
 
 BOOL get_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
-void list_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 
 BOOL create_gui(struct PlayCDDAData *pcd);
 void destroy_gui(struct PlayCDDAData *pcd);

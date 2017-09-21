@@ -278,16 +278,3 @@ void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list) {
 	}
 }
 
-void list_cdrom_drives(struct PlayCDDAData *pcd, struct List *list) {
-	struct Node       *node;
-	struct CDROMDrive *cdd;
-
-	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
-		cdd = (struct CDROMDrive *)node;
-
-		printf("%s:\n\tDevice = %s\n\tUnit   = %u\n\tFlags  = 0x%08x\n",
-			cdd->cdd_Node.ln_Name, cdd->cdd_Device,
-			(unsigned)cdd->cdd_Unit, (unsigned)cdd->cdd_Flags);
-	}
-}
-
