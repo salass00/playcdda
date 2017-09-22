@@ -183,6 +183,8 @@ static BOOL do_player_command(struct PlayCDDAData *pcd, pcm_command_t command,
 	pcm->pcm_Arg3 = arg3;
 	pcm->pcm_Arg4 = arg4;
 
+	pcm->pcm_Result = FALSE;
+
 	if (!send_message_to_pid(pcpd->pcpd_ProcessID, &pcm->pcm_Msg))
 		return FALSE;
 
