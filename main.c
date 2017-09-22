@@ -34,6 +34,28 @@
 
 const char verstag[] = VERSTAG;
 
+#ifdef __amigaos4__
+
+APTR alloc_shared_mem(ULONG size) {
+	return AllocVecTags(size, AVT_Type, MEMF_SHARED, TAG_END);
+}
+
+void free_shared_mem(APTR memory, ULONG size) {
+	FreeVec(memory);
+}
+
+#else
+
+APTR alloc_shared_mem(ULONG size) {
+	return AllocMem(size, MEMF_PUBLIC);
+}
+
+void free_shared_mem(APTR memory, ULONG size) {
+	FreeMem(memory, size);
+}
+
+#endif
+
 static BOOL get_icon(struct PlayCDDAData *pcd, int argc, char **argv) {
 	IconBase = OpenLibrary((CONST_STRPTR)"icon.library", 0);
 	if (IconBase == NULL)
@@ -79,43 +101,21 @@ static void free_icon(struct PlayCDDAData *pcd) {
 	CloseLibrary(IconBase);
 }
 
-static BOOL alloc_buffers(struct PlayCDDAData *pcd) {
-	pcd->pcd_PCMBuf[0] = malloc(PCM_BUF_SIZE);
-	pcd->pcd_PCMBuf[1] = malloc(PCM_BUF_SIZE);
-
-	pcd->pcd_CDDABuf[0] = malloc(CDDA_BUF_SIZE);
-	pcd->pcd_CDDABuf[1] = malloc(CDDA_BUF_SIZE);
-
-	if (pcd->pcd_PCMBuf[0] != NULL && pcd->pcd_PCMBuf[1] != NULL && pcd->pcd_CDDABuf[0] != NULL && pcd->pcd_CDDABuf[1] != NULL)
-		return TRUE;
-
-	return FALSE;
-}
-
-static void free_buffers(struct PlayCDDAData *pcd) {
-	free(pcd->pcd_PCMBuf[0]);
-	free(pcd->pcd_PCMBuf[1]);
-
-	free(pcd->pcd_CDDABuf[0]);
-	free(pcd->pcd_CDDABuf[1]);
-}
-
 int main(int argc, char **argv) {
 	struct PlayCDDAData *pcd;
 	int rc = RETURN_ERROR;
 
-	pcd = malloc(sizeof(*pcd));
+	pcd = alloc_shared_mem(sizeof(*pcd));
 	if (pcd == NULL)
 		goto cleanup;
 
 	memset(pcd, 0, sizeof(*pcd));
 
+	pcd->pcd_MainProc = (struct Process *)FindTask(NULL);
+
 	open_catalog(pcd, "PlayCDDA.catalog");
 
 	if (!get_icon(pcd, argc, argv))
-		goto cleanup;
-
-	if (!alloc_buffers(pcd))
 		goto cleanup;
 
 	if (!open_ahi(pcd))
@@ -128,11 +128,16 @@ int main(int argc, char **argv) {
 		goto cleanup;
 
 	/* Default to drive CD0: */
-	pcd->pcd_CurrentDrive = (struct CDROMDrive *)FindIName(&pcd->pcd_CDDrives, "CD0");
+	pcd->pcd_CurrentDrive = (struct CDROMDrive *)FindName(&pcd->pcd_CDDrives, (CONST_STRPTR)"CD0");
 
 	/* If not available use the first CD drive in the list */
 	if (pcd->pcd_CurrentDrive == NULL)
 		pcd->pcd_CurrentDrive = (struct CDROMDrive *)GetHead(&pcd->pcd_CDDrives);
+
+	if (!open_cdrom_drive(pcd, pcd->pcd_CurrentDrive))
+		goto cleanup;
+
+	set_volume(pcd, 64); /* Full volume */
 
 	if (!create_gui(pcd))
 		goto cleanup;
@@ -143,17 +148,17 @@ cleanup:
 	if (pcd != NULL) {
 		destroy_gui(pcd);
 
+		close_cdrom_drive(pcd);
+
 		free_cdrom_drives(pcd, &pcd->pcd_CDDrives);
 
 		close_ahi(pcd);
-
-		free_buffers(pcd);
 
 		free_icon(pcd);
 
 		close_catalog(pcd);
 
-		free(pcd);
+		free_shared_mem(pcd, sizeof(*pcd));
 	}
 
 	return rc;

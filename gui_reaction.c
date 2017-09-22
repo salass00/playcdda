@@ -373,7 +373,7 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 		SLIDER_Orientation, SLIDER_VERTICAL,
 		SLIDER_Min,         0,
 		SLIDER_Max,         64,
-		SLIDER_Level,       64,
+		SLIDER_Level,       get_volume(pcd),
 		SLIDER_Invert,      TRUE,
 		TAG_END);
 
@@ -536,7 +536,7 @@ int main_loop(struct PlayCDDAData *pcd) {
 								break;
 
 							case OID_VOLUME_SLIDER:
-								pcd->pcd_Volume = (ULONG)code << 10;
+								set_volume(pcd, code);
 								break;
 
 							default:

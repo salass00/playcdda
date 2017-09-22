@@ -61,7 +61,7 @@
 #define PCM_BUF_FRAMES  5
 #define PCM_BUF_SIZE    (PCM_BUF_FRAMES*CDDA_FRAME_SIZE)
 
-#define PLAYER_TASK_PRI 5
+#define PLAYER_PROC_PRI 5
 
 #ifdef __amigaos4__
 #define CurrentDir(dir) SetCurrentDir(dir)
@@ -74,35 +74,71 @@ struct CDROMDrive {
 	ULONG        cdd_Flags;
 };
 
-struct PlayCDDAData {
-	struct Library     *pcd_LocaleBase;
-	struct Library     *pcd_IconBase;
+typedef enum {
+	PCC_INVALID,
+	PCC_STARTUP,
+	PCC_PLAY,
+	PCC_PAUSE,
+	PCC_STOP,
+	PCC_DIE
+} pcm_command_t;
 
-#ifdef __amigaos4__
-	struct LocaleIFace *pcd_ILocale;
-	struct IconIFace   *pcd_IIcon;
+#ifdef __AROS__
+typedef IPTR  pcm_arg_t;
+#else
+typedef ULONG pcm_arg_t;
 #endif
 
-	struct Catalog     *pcd_Catalog;
+struct PlayCDDAMsg {
+	struct Message       pcm_Msg;
+	struct PlayCDDAData *pcm_GlobalData;
+	pcm_command_t        pcm_Command;
+	pcm_arg_t            pcm_Args[4];
+	BOOL                 pcm_Result;
+};
 
-	struct DiskObject  *pcd_Icon;
+#ifdef __amigaos4__
+typedef ULONG           pcpd_proc_id_t;
+#else
+typedef struct Process *pcpd_proc_id_t;
+#endif
 
-	struct MsgPort     *pcd_AHIPort;
-	struct AHIRequest  *pcd_AHIReq[2];
-	struct AHIRequest  *pcd_LinkReq;
-	int                 pcd_CurrentReq;
-	Fixed               pcd_Volume;
+struct PlayCDDAPlayerData {
+	Fixed              pcpd_Volume;
 
-	struct List         pcd_CDDrives;
-	struct CDROMDrive  *pcd_CurrentDrive;
+	struct MsgPort     pcpd_ReplyPort;
+	struct PlayCDDAMsg pcpd_PlayerMsg;
 
-	struct MsgPort     *pcd_CDPort;
-	struct IOStdReq    *pcd_CDReq;
+	pcpd_proc_id_t     pcpd_ProcessID;
+};
 
-	WORD               *pcd_PCMBuf[2];
-	UWORD              *pcd_CDDABuf[2];
+struct PlayCDDAData {
+	struct Process           *pcd_MainProc;
 
-	struct PlayCDDAGUI  pcd_GUIData;
+	struct Library           *pcd_LocaleBase;
+	struct Library           *pcd_IconBase;
+
+#ifdef __amigaos4__
+	struct LocaleIFace       *pcd_ILocale;
+	struct IconIFace         *pcd_IIcon;
+#endif
+
+	struct Catalog           *pcd_Catalog;
+
+	struct DiskObject        *pcd_Icon;
+
+	struct MsgPort           *pcd_AHIPort;
+	struct AHIRequest        *pcd_AHIReq;
+
+	struct List               pcd_CDDrives;
+	struct CDROMDrive        *pcd_CurrentDrive;
+
+	struct MsgPort           *pcd_CDPort;
+	struct IOStdReq          *pcd_CDReq;
+
+	struct PlayCDDAGUI        pcd_GUIData;
+
+	struct PlayCDDAPlayerData pcd_PlayerData;
 };
 
 #define LocaleBase (pcd->pcd_LocaleBase)
@@ -112,6 +148,9 @@ struct PlayCDDAData {
 #define IIcon      (pcd->pcd_IIcon)
 
 extern const char verstag[];
+
+APTR alloc_shared_mem(ULONG size);
+void free_shared_mem(APTR memory, ULONG size);
 
 BOOL open_catalog(struct PlayCDDAData *pcd, const char *catalog_name);
 void close_catalog(struct PlayCDDAData *pcd);
@@ -137,6 +176,9 @@ void close_cdrom_drive(struct PlayCDDAData *pcd);
 BOOL create_gui(struct PlayCDDAData *pcd);
 void destroy_gui(struct PlayCDDAData *pcd);
 int main_loop(struct PlayCDDAData *pcd);
+
+void set_volume(struct PlayCDDAData *pcd, int volume);
+int get_volume(const struct PlayCDDAData *pcd);
 
 #endif /* PLAYCDDA_H */
 
