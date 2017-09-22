@@ -28,9 +28,12 @@
 
 #include "playcdda.h"
 
+#include <devices/scsidisk.h>
 #ifndef __amigaos4__
 #include <clib/alib_protos.h>
 #endif
+
+#include <unistd.h>
 
 static void init_msgport(struct MsgPort *port) {
 	port->mp_Node.ln_Type = NT_MSGPORT;
@@ -170,6 +173,9 @@ static BOOL do_player_command(struct PlayCDDAData *pcd, pcm_command_t command,
 	struct PlayCDDAPlayerData *pcpd = &pcd->pcd_PlayerData;
 	struct PlayCDDAMsg        *pcm  = &pcpd->pcpd_PlayerMsg;
 
+	if (pcpd->pcpd_ProcessID == 0)
+		return FALSE;
+
 	pcm->pcm_Command = command;
 
 	pcm->pcm_Arg1 = arg1;
@@ -202,14 +208,25 @@ static int player_proc_entry(void) {
 	struct MsgPort            *myport;
 	struct PlayCDDAData       *pcd;
 	struct PlayCDDAMsg        *pcm;
-	/* struct PlayCDDAPlayerData *pcpd; */
+	struct PlayCDDAPlayerData *pcpd;
 	struct MsgPort             ioport;
 	struct IOStdReq           *cdreq = NULL;
 	struct AHIRequest         *ahireq[2]  = { NULL, NULL };
+	struct AHIRequest         *linkreq = NULL;
 	UWORD                     *cddabuf[2] = { NULL, NULL };
 	WORD                      *pcmbuf[2]  = { NULL, NULL };
+	LONG                       read_addr, end_addr;
+	LONG                       play_addr;
+	int                        cddabufid;
+	int                        pcmbufid;
+	int                        cddabufpos;
+	int                        cddaframes;
+	BOOL                       cdisbusy;
 	BOOL                       playing;
 	BOOL                       done;
+	struct SCSICmd             scsicmd;
+	UBYTE                      cmd[12];
+	UBYTE                      sense[20];
 	int                        rc = RETURN_ERROR;
 
 	me     = (struct Process *)FindTask(NULL);
@@ -222,7 +239,7 @@ static int player_proc_entry(void) {
 	if (!valid_player_message(pcd, pcm) || pcm->pcm_Command != PCC_STARTUP)
 		return RETURN_FAIL;
 
-	/* pcpd = &pcd->pcd_PlayerData; */
+	pcpd = &pcd->pcd_PlayerData;
 
 	init_msgport(&ioport);
 
@@ -254,7 +271,13 @@ static int player_proc_entry(void) {
 	ReplyMsg(&pcm->pcm_Msg);
 
 	playing = FALSE;
-	done = FALSE;
+	done    = FALSE;
+
+	cddabufid  = 0;
+	pcmbufid   = 0;
+	cddabufpos = 0;
+	cddaframes = 0;
+	cdisbusy   = FALSE;
 
 	while (!done) {
 		if (!playing) {
@@ -285,7 +308,137 @@ static int player_proc_entry(void) {
 		}
 
 		if (playing) {
-			/* FIXME: Add CDDA playback code */
+			if (cddaframes <= 0) {
+				if (cdisbusy) {
+					WaitIO((struct IORequest *)cdreq);
+					cdisbusy = FALSE;
+					cddabufid ^= 1;
+				} else {
+					int frames;
+
+					frames = CDDA_BUF_FRAMES;
+					if (frames > (end_addr - read_addr))
+						frames = end_addr - read_addr;
+
+					/* READ CD command */
+					cmd[ 0] = 0xBE;
+					cmd[ 1] = 0x04;
+					cmd[ 2] = ((ULONG)read_addr >> 24) & 0xFF;
+					cmd[ 3] = ((ULONG)read_addr >> 16) & 0xFF;
+					cmd[ 4] = ((ULONG)read_addr >> 8) & 0xFF;
+					cmd[ 5] = (ULONG)read_addr & 0xFF;
+					cmd[ 6] = 0;
+					cmd[ 7] = 0;
+					cmd[ 8] = frames;
+					cmd[ 9] = 0x10;
+					cmd[10] = 0;
+					cmd[11] = 0;
+
+					scsicmd.scsi_Data        = cddabuf[cddabufid];
+					scsicmd.scsi_Length      = frames * CDDA_FRAME_SIZE;
+					scsicmd.scsi_Actual      = 0;
+					scsicmd.scsi_Command     = cmd;
+					scsicmd.scsi_CmdLength   = 12;
+					scsicmd.scsi_CmdActual   = 0;
+					scsicmd.scsi_Flags       = SCSIF_READ | SCSIF_AUTOSENSE;
+					scsicmd.scsi_Status      = 0;
+					scsicmd.scsi_SenseData   = sense;
+					scsicmd.scsi_SenseLength = sizeof(sense);
+					scsicmd.scsi_SenseActual = 0;
+
+					cdreq->io_Command = HD_SCSICMD;
+					cdreq->io_Data    = &scsicmd;
+					cdreq->io_Length  = sizeof(scsicmd);
+
+					DoIO((struct IORequest *)cdreq);
+				}
+
+				if (cdreq->io_Error == 0) {
+					int frames;
+
+					cddabufpos = 0;
+					cddaframes = cmd[8];
+					read_addr += cddaframes;
+
+					frames = CDDA_BUF_FRAMES;
+					if (frames > (end_addr - read_addr))
+						frames = end_addr - read_addr;
+
+					/* READ CD command */
+					cmd[ 0] = 0xBE;
+					cmd[ 1] = 0x04;
+					cmd[ 2] = ((ULONG)read_addr >> 24) & 0xFF;
+					cmd[ 3] = ((ULONG)read_addr >> 16) & 0xFF;
+					cmd[ 4] = ((ULONG)read_addr >> 8) & 0xFF;
+					cmd[ 5] = (ULONG)read_addr & 0xFF;
+					cmd[ 6] = 0;
+					cmd[ 7] = 0;
+					cmd[ 8] = frames;
+					cmd[ 9] = 0x10;
+					cmd[10] = 0;
+					cmd[11] = 0;
+
+					scsicmd.scsi_Data        = cddabuf[cddabufid ^ 1];
+					scsicmd.scsi_Length      = frames * CDDA_FRAME_SIZE;
+					scsicmd.scsi_Actual      = 0;
+					scsicmd.scsi_Command     = cmd;
+					scsicmd.scsi_CmdLength   = 12;
+					scsicmd.scsi_CmdActual   = 0;
+					scsicmd.scsi_Flags       = SCSIF_READ | SCSIF_AUTOSENSE;
+					scsicmd.scsi_Status      = 0;
+					scsicmd.scsi_SenseData   = sense;
+					scsicmd.scsi_SenseLength = sizeof(sense);
+					scsicmd.scsi_SenseActual = 0;
+
+					cdreq->io_Command = HD_SCSICMD;
+					cdreq->io_Data    = &scsicmd;
+					cdreq->io_Length  = sizeof(scsicmd);
+
+					SendIO((struct IORequest *)cdreq);
+
+					cdisbusy = TRUE;
+				}
+			}
+
+			if (cddaframes > 0) {
+				int frames;
+
+				frames = PCM_BUF_FRAMES;
+				if (frames > cddaframes)
+					frames = cddaframes;
+
+				swab((UBYTE *)cddabuf[cddabufid] + (cddabufpos * CDDA_FRAME_SIZE),
+					pcmbuf[pcmbufid], frames * CDDA_FRAME_SIZE);
+
+				ahireq[pcmbufid]->ahir_Std.io_Command = CMD_WRITE;
+				ahireq[pcmbufid]->ahir_Std.io_Data    = pcmbuf[pcmbufid];
+				ahireq[pcmbufid]->ahir_Std.io_Length  = frames * CDDA_FRAME_SIZE;
+				ahireq[pcmbufid]->ahir_Std.io_Offset  = 0;
+				ahireq[pcmbufid]->ahir_Type           = AHIST_S16S;
+				ahireq[pcmbufid]->ahir_Frequency      = 44100;
+				ahireq[pcmbufid]->ahir_Volume         = pcpd->pcpd_Volume;
+				ahireq[pcmbufid]->ahir_Position       = 0x10000;
+				ahireq[pcmbufid]->ahir_Link           = linkreq;
+
+				SendIO((struct IORequest *)ahireq[pcmbufid]);
+
+				if (linkreq)
+					WaitIO((struct IORequest *)linkreq);
+
+				linkreq = ahireq[pcmbufid];
+				pcmbufid ^= 1;
+
+				play_addr  += frames;
+				cddabufpos += frames;
+				cddaframes -= frames;
+
+				if (play_addr >= end_addr)
+					playing = FALSE;
+			} else {
+				playing = FALSE;
+			}
+
+			/* FIXME: Signal main process, so that the GUI can be updated */
 		}
 	}
 
