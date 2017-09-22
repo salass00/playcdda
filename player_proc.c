@@ -164,11 +164,18 @@ static BOOL find_proc_by_pid(struct Process *proc) {
 
 #endif
 
-static BOOL do_player_command(struct PlayCDDAData *pcd, pcm_command_t command) {
+static BOOL do_player_command(struct PlayCDDAData *pcd, pcm_command_t command,
+	pcm_arg_t arg1, pcm_arg_t arg2, pcm_arg_t arg3, pcm_arg_t arg4)
+{
 	struct PlayCDDAPlayerData *pcpd = &pcd->pcd_PlayerData;
 	struct PlayCDDAMsg        *pcm  = &pcpd->pcpd_PlayerMsg;
 
 	pcm->pcm_Command = command;
+
+	pcm->pcm_Arg1 = arg1;
+	pcm->pcm_Arg2 = arg2;
+	pcm->pcm_Arg3 = arg3;
+	pcm->pcm_Arg4 = arg4;
 
 	if (!send_message_to_pid(pcpd->pcpd_ProcessID, &pcm->pcm_Msg))
 		return FALSE;
@@ -179,6 +186,12 @@ static BOOL do_player_command(struct PlayCDDAData *pcd, pcm_command_t command) {
 
 	return pcm->pcm_Result;
 }
+
+#define DO_PLAYER_CMD0(pcd, cmd) do_player_command((pcd), (cmd), 0, 0, 0, 0)
+#define DO_PLAYER_CMD1(pcd, cmd, arg1) do_player_command((pcd), (cmd), (arg1), 0, 0, 0)
+#define DO_PLAYER_CMD2(pcd, cmd, arg1, arg2) do_player_command((pcd), (cmd), (arg1), (arg2), 0, 0)
+#define DO_PLAYER_CMD3(pcd, cmd, arg1, arg2, arg3) do_player_command((pcd), (cmd), (arg1), (arg2), (arg3), 0)
+#define DO_PLAYER_CMD4(pcd, cmd, arg1, arg2, arg3, arg4) do_player_command((pcd), (cmd), (arg1), (arg2), (arg3), (arg4))
 
 static void wait_for_death(pcpd_proc_id_t pid) {
 	while (find_proc_by_pid(pid)) Delay(10);
@@ -192,9 +205,9 @@ static int player_proc_entry(void) {
 	/* struct PlayCDDAPlayerData *pcpd; */
 	struct MsgPort             ioport;
 	struct IOStdReq           *cdreq = NULL;
-	struct AHIRequest         *ahireq[2] = { NULL, NULL };
+	struct AHIRequest         *ahireq[2]  = { NULL, NULL };
 	UWORD                     *cddabuf[2] = { NULL, NULL };
-	WORD                      *pcmbuf[2] = { NULL, NULL };
+	WORD                      *pcmbuf[2]  = { NULL, NULL };
 	BOOL                       playing;
 	BOOL                       done;
 	int                        rc = RETURN_ERROR;
@@ -330,7 +343,7 @@ static BOOL start_player_proc(struct PlayCDDAData *pcd) {
 	pcpd->pcpd_ProcessID = proc;
 #endif
 
-	if (!do_player_command(pcd, PCC_STARTUP)) {
+	if (!DO_PLAYER_CMD0(pcd, PCC_STARTUP)) {
 		wait_for_death(pcpd->pcpd_ProcessID);
 		pcpd->pcpd_ProcessID = 0;
 		goto cleanup;
@@ -350,7 +363,7 @@ static void kill_player_proc(struct PlayCDDAData *pcd) {
 	if (pcpd->pcpd_ProcessID == 0)
 		return;
 
-	if (!do_player_command(pcd, PCC_DIE))
+	if (!DO_PLAYER_CMD0(pcd, PCC_DIE))
 		return;
 
 	wait_for_death(pcpd->pcpd_ProcessID);

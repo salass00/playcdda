@@ -93,7 +93,10 @@ struct PlayCDDAMsg {
 	struct Message       pcm_Msg;
 	struct PlayCDDAData *pcm_GlobalData;
 	pcm_command_t        pcm_Command;
-	pcm_arg_t            pcm_Args[4];
+	pcm_arg_t            pcm_Arg1;
+	pcm_arg_t            pcm_Arg2;
+	pcm_arg_t            pcm_Arg3;
+	pcm_arg_t            pcm_Arg4;
 	BOOL                 pcm_Result;
 };
 
