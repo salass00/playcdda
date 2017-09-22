@@ -189,10 +189,12 @@ static int player_proc_entry(void) {
 	struct MsgPort            *myport;
 	struct PlayCDDAData       *pcd;
 	struct PlayCDDAMsg        *pcm;
-	struct PlayCDDAPlayerData *pcpd;
+	/* struct PlayCDDAPlayerData *pcpd; */
 	struct MsgPort             ioport;
-	struct AHIRequest         *ahireq[2];
-	struct IOStdReq           *cdreq;
+	struct IOStdReq           *cdreq = NULL;
+	struct AHIRequest         *ahireq[2] = { NULL, NULL };
+	UWORD                     *cddabuf[2] = { NULL, NULL };
+	WORD                      *pcmbuf[2] = { NULL, NULL };
 	BOOL                       playing;
 	BOOL                       done;
 	int                        rc = RETURN_ERROR;
@@ -207,23 +209,33 @@ static int player_proc_entry(void) {
 	if (!valid_player_message(pcd, pcm) || pcm->pcm_Command != PCC_STARTUP)
 		return RETURN_FAIL;
 
-	pcpd = &pcd->pcd_PlayerData;
+	/* pcpd = &pcd->pcd_PlayerData; */
 
 	init_msgport(&ioport);
+
+	cdreq = (struct IOStdReq *)copy_iorequest((struct IORequest *)pcd->pcd_CDReq);
+	if (cdreq == NULL)
+		goto cleanup;
 
 	ahireq[0] = (struct AHIRequest *)copy_iorequest((struct IORequest *)pcd->pcd_AHIReq);
 	ahireq[1] = (struct AHIRequest *)copy_iorequest((struct IORequest *)pcd->pcd_AHIReq);
 	if (ahireq[0] == NULL || ahireq[1] == NULL)
 		goto cleanup;
 
-	cdreq = (struct IOStdReq *)copy_iorequest((struct IORequest *)pcd->pcd_CDReq);
-	if (cdreq == NULL)
-		goto cleanup;
+	cdreq->io_Message.mn_ReplyPort = &ioport;
 
 	ahireq[0]->ahir_Std.io_Message.mn_ReplyPort = &ioport;
 	ahireq[1]->ahir_Std.io_Message.mn_ReplyPort = &ioport;
 
-	cdreq->io_Message.mn_ReplyPort = &ioport;
+	cddabuf[0] = alloc_shared_mem(CDDA_BUF_SIZE);
+	cddabuf[1] = alloc_shared_mem(CDDA_BUF_SIZE);
+	if (cddabuf[0] == NULL || cddabuf[1] == NULL)
+		goto cleanup;
+
+	pcmbuf[0] = alloc_shared_mem(PCM_BUF_SIZE);
+	pcmbuf[1] = alloc_shared_mem(PCM_BUF_SIZE);
+	if (pcmbuf[0] == NULL || pcmbuf[1] == NULL)
+		goto cleanup;
 
 	pcm->pcm_Result = TRUE;
 	ReplyMsg(&pcm->pcm_Msg);
@@ -265,10 +277,16 @@ static int player_proc_entry(void) {
 	}
 
 cleanup:
-	delete_iorequest_copy((struct IORequest *)cdreq);
+	free_shared_mem(pcmbuf[0], PCM_BUF_SIZE);
+	free_shared_mem(pcmbuf[1], PCM_BUF_SIZE);
+
+	free_shared_mem(cddabuf[0], CDDA_BUF_SIZE);
+	free_shared_mem(cddabuf[1], CDDA_BUF_SIZE);
 
 	delete_iorequest_copy((struct IORequest *)ahireq[0]);
 	delete_iorequest_copy((struct IORequest *)ahireq[1]);
+
+	delete_iorequest_copy((struct IORequest *)cdreq);
 
 	deinit_msgport(&ioport);
 
