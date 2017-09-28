@@ -234,7 +234,7 @@ static int player_proc_entry(void) {
 	BOOL                       done;
 	struct SCSICmd             scsicmd;
 	UBYTE                      cmd[12];
-	UBYTE                      sense[20];
+	UBYTE                      sense[128];
 	int                        rc = RETURN_ERROR;
 
 	me     = (struct Process *)FindTask(NULL);

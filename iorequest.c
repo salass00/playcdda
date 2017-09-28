@@ -77,7 +77,7 @@ struct IORequest *copy_iorequest(const struct IORequest *original) {
 	ULONG             size = original->io_Message.mn_Length;
 	struct IORequest *ioreq;
 
-	ioreq = AllocMem(size, MEMF_PUBLIC);
+	ioreq = alloc_shared_mem(size);
 
 	if (ioreq != NULL)
 		CopyMem(original, ioreq, size);
@@ -91,7 +91,7 @@ void delete_iorequest(struct IORequest *ioreq) {
 
 void delete_iorequest_copy(struct IORequest *ioreq) {
 	if (ioreq != NULL) {
-		FreeMem(ioreq, ioreq->io_Message.mn_Length);
+		free_shared_mem(ioreq, ioreq->io_Message.mn_Length);
 	}
 }
 
