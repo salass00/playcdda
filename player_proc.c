@@ -298,12 +298,16 @@ static int player_proc_entry(void) {
 					case PCC_PLAY:
 						if (!playing) {
 							playing = TRUE;
+
+							pcm->pcm_Result = TRUE;
 						}
 						break;
 
 					case PCC_PAUSE:
 						if (playing) {
 							playing = FALSE;
+
+							pcm->pcm_Result = TRUE;
 						}
 						break;
 
@@ -320,6 +324,8 @@ static int player_proc_entry(void) {
 							}
 
 							cddaframes = 0;
+
+							pcm->pcm_Result = TRUE;
 						}
 						break;
 
