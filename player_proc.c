@@ -62,6 +62,12 @@ static void init_player_message(struct PlayCDDAData *pcd, struct PlayCDDAMsg *pc
 	pcm->pcm_Command    = PCC_INVALID;
 }
 
+static void deinit_player_message(struct PlayCDDAMsg *pcm) {
+	if (pcm->pcm_Msg.mn_Node.ln_Type != 0) {
+		memset(pcm, 0, sizeof(*pcm));
+	}
+}
+
 static BOOL valid_player_message(const struct PlayCDDAData *pcd, const struct PlayCDDAMsg *pcm) {
 	if (pcm->pcm_Msg.mn_Node.ln_Type == NT_MESSAGE && pcm->pcm_Msg.mn_Length == sizeof(*pcm)) {
 		if (pcm->pcm_GlobalData == pcd)
@@ -289,7 +295,33 @@ static int player_proc_entry(void) {
 		while ((pcm = (struct PlayCDDAMsg *)GetMsg(myport)) != NULL) {
 			if (valid_player_message(pcd, pcm)) {
 				switch (pcm->pcm_Command) {
-					/* FIXME: Add support for player commands */
+					case PCC_PLAY:
+						if (!playing) {
+							playing = TRUE;
+						}
+						break;
+
+					case PCC_PAUSE:
+						if (playing) {
+							playing = FALSE;
+						}
+						break;
+
+					case PCC_STOP:
+						if (playing) {
+							playing = FALSE;
+
+							if (cdisbusy) {
+								if (CheckIO((struct IORequest *)cdreq) == NULL)
+									AbortIO((struct IORequest *)cdreq);
+
+								WaitIO((struct IORequest *)cdreq);
+								cdisbusy = FALSE;
+							}
+
+							cddaframes = 0;
+						}
+						break;
 
 					case PCC_DIE:
 						if (playing) {
@@ -507,6 +539,8 @@ static BOOL start_player_proc(struct PlayCDDAData *pcd) {
 	return TRUE;
 
 cleanup:
+	deinit_player_message(&pcpd->pcpd_PlayerMsg);
+
 	deinit_msgport(&pcpd->pcpd_ReplyPort);
 
 	return FALSE;
