@@ -171,9 +171,93 @@ cleanup:
 
 BOOL create_gui(struct PlayCDDAData *pcd) {
 	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
-	Object *sub_layout_1;
-	Object *sub_layout_2;
-	Object *sub_layout_3, *volume_label;
+	struct List        *list;
+	struct Node        *node;
+	int                 index;
+	struct CDROMDrive  *cdd;
+	char                label[256];
+	Object             *about_item;
+	Object             *separator_1;
+	Object             *iconify_item;
+	Object             *separator_2;
+	Object             *cdrom_menu;
+	Object             *menu_item;
+	Object             *separator_3;
+	Object             *quit_item;
+	Object             *project_menu;
+	Object             *sub_layout_1;
+	Object             *sub_layout_2;
+	Object             *sub_layout_3, *volume_label;
+
+	about_item = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    STR(PROJECT_ABOUT),
+		MUIA_Menuitem_Shortcut, "?",
+		TAG_END);
+
+	separator_1 = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    NM_BARLABEL,
+		TAG_END);
+
+	iconify_item = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    STR(PROJECT_ICONIFY),
+		MUIA_Menuitem_Shortcut, "I",
+		TAG_END);
+
+	separator_2 = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    NM_BARLABEL,
+		TAG_END);
+
+	cdrom_menu = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    STR(PROJECT_CDROMDRIVE),
+		TAG_END);
+
+	list  = &pcd->pcd_CDDrives;
+	index = 0;
+
+	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
+		cdd = (struct CDROMDrive *)node;
+
+		snprintf(label, sizeof(label), "%s [%s:%lu]", node->ln_Name, cdd->cdd_Device, (unsigned long)cdd->cdd_Unit);
+
+		menu_item = MUI_NewObject(MUIC_Menuitem,
+			MUIA_UserData,         cdd,
+			MUIA_Menuitem_Title,   strdup(label),
+			MUIA_Menuitem_Exclude, ~(1 << index),
+			MUIA_Menuitem_Checkit, TRUE,
+			MUIA_Menuitem_Checked, (cdd == pcd->pcd_CurrentDrive),
+			TAG_END);
+		if (menu_item == NULL)
+			return FALSE;
+
+		DoMethod(cdrom_menu, MUIM_Family_AddTail, menu_item);
+
+		if (++index >= 32)
+			break;
+	}
+
+	separator_3 = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    NM_BARLABEL,
+		TAG_END);
+
+	quit_item = MUI_NewObject(MUIC_Menuitem,
+		MUIA_Menuitem_Title,    STR(PROJECT_QUIT),
+		MUIA_Menuitem_Shortcut, "Q",
+		TAG_END);
+
+	project_menu = MUI_NewObject(MUIC_Menu,
+		MUIA_Menu_Title,   "PlayCDDA",
+		MUIA_Family_Child, about_item,
+		MUIA_Family_Child, separator_1,
+		MUIA_Family_Child, iconify_item,
+		MUIA_Family_Child, separator_2,
+		MUIA_Family_Child, cdrom_menu,
+		MUIA_Family_Child, separator_3,
+		MUIA_Family_Child, quit_item,
+		TAG_END);
+
+	OBJ(MENUSTRIP) = MUI_NewObject(MUIC_Menustrip,
+		MUIA_Family_Child, project_menu,
+		TAG_END);
 
 	OBJ(STATUS_DISPLAY) = MUI_NewObject(MUIC_Text,
 		MUIA_Frame,         MUIV_Frame_Text,
@@ -238,6 +322,7 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 
 	OBJ(WINDOW) = MUI_NewObject(MUIC_Window,
 		MUIA_Window_Title,      VERS,
+		MUIA_Window_Menustrip,  OBJ(MENUSTRIP),
 		MUIA_Window_RootObject, OBJ(ROOT_LAYOUT),
 		TAG_END);
 
