@@ -56,6 +56,19 @@ void free_shared_mem(APTR memory, ULONG size) {
 
 #endif
 
+#if !defined(__amigaos4__) && !defined(__AROS__)
+
+static struct Node *GetHead(const struct List *list) {
+	struct Node *node = list->lh_Head;
+
+	if (node->ln_Succ != NULL)
+		return node;
+
+	return NULL;
+}
+
+#endif
+
 static BOOL get_icon(struct PlayCDDAData *pcd, int argc, char **argv) {
 	IconBase = OpenLibrary((CONST_STRPTR)"icon.library", 0);
 	if (IconBase == NULL)
@@ -73,14 +86,14 @@ static BOOL get_icon(struct PlayCDDAData *pcd, int argc, char **argv) {
 		BPTR cd;
 
 		cd = CurrentDir(wbsm->sm_ArgList[0].wa_Lock);
-		pcd->pcd_Icon = GetDiskObject((CONST_STRPTR)wbsm->sm_ArgList[0].wa_Name);
+		pcd->pcd_Icon = GetDiskObject((STRPTR)wbsm->sm_ArgList[0].wa_Name);
 		CurrentDir(cd);
 	} else {
 		/* CLI startup */
 		BPTR cd;
 
 		cd = CurrentDir(GetProgramDir());
-		pcd->pcd_Icon = GetDiskObject(FilePart((CONST_STRPTR)argv[0]));
+		pcd->pcd_Icon = GetDiskObject(FilePart((STRPTR)argv[0]));
 		CurrentDir(cd);
 	}
 

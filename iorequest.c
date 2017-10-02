@@ -80,7 +80,7 @@ struct IORequest *copy_iorequest(const struct IORequest *original) {
 	ioreq = alloc_shared_mem(size);
 
 	if (ioreq != NULL)
-		CopyMem(original, ioreq, size);
+		memcpy(ioreq, original, size);
 
 	return ioreq;
 }

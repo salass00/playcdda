@@ -29,6 +29,7 @@
 #include "playcdda.h"
 
 #include <exec/errors.h>
+#include <dos/filehandler.h>
 #include <devices/trackdisk.h>
 #include <devices/scsidisk.h>
 #include <devices/newstyle.h>

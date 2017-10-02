@@ -47,10 +47,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __AROS__
-#include "gui_mui.h"
-#else
+#ifdef __amigaos4__
 #include "gui_reaction.h"
+#else
+#include "gui_mui.h"
 #endif
 
 #define CDDA_FRAME_SIZE 2352

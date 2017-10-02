@@ -44,7 +44,7 @@ BOOL open_catalog(struct PlayCDDAData *pcd, const char *catalog_name) {
 		OC_BuiltInCodeSet, DEFAULT_CODESET,
 		TAG_END);
 #else
-	pcd->pcd_Catalog = OpenCatalogA(NULL, (CONST_STRPTR)catalog_name, NULL);
+	pcd->pcd_Catalog = OpenCatalogA(NULL, (STRPTR)catalog_name, NULL);
 #endif
 	if (pcd->pcd_Catalog == NULL)
 		return FALSE;
@@ -67,6 +67,6 @@ const char *get_catalog_string(struct PlayCDDAData *pcd, int id, const char *bui
 	if (pcd->pcd_Catalog == NULL)
 		return builtin;
 
-	return (const char *)GetCatalogStr(pcd->pcd_Catalog, id, (CONST_STRPTR)builtin);
+	return (const char *)GetCatalogStr(pcd->pcd_Catalog, id, (STRPTR)builtin);
 }
 
