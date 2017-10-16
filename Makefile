@@ -10,6 +10,11 @@ LDFLAGS    := -static
 LIBS       := 
 STRIPFLAGS := --strip-unneeded -R.comment
 
+ifeq ($(HOST),m68k-amigaos)
+	CFLAGS  := -noixemul $(CFLAGS)
+	LDFLAGS := -noixemul $(LDFLAGS)
+endif
+
 SRCS := main.c locale.c iorequest.c ahi.c cdrom.c gui_reaction.c gui_mui.c player_proc.c
 OBJS := $(SRCS:.c=.o)
 
