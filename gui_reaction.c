@@ -395,6 +395,9 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 		LAYOUT_AddChild, sub_layout_3,
 		TAG_END);
 
+	pcd->pcd_Icon->do_CurrentX = NO_ICON_POSITION;
+	pcd->pcd_Icon->do_CurrentY = NO_ICON_POSITION;
+
 	OBJ(WINDOW) = NewObject(WindowClass, NULL,
 		WA_PubScreen, pcg->pcg_Screen,
 		WA_Title,     VERS,
