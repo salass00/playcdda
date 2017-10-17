@@ -73,20 +73,81 @@ enum {
 	SBID_NEXT
 };
 
-static BOOL VARARGS68K create_menu(struct PlayCDDAData *pcd, ...) {
+static BOOL VARARGS68K DoNewMenu(struct PlayCDDAData *pcd, Object *menustrip, ...) {
 	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
 	va_list tags;
 	BOOL    result;
 
-	OBJ(MENUSTRIP) = NewObject(NULL, "menuclass", MA_Type, T_ROOT, TAG_END);
-	if (OBJ(MENUSTRIP) == NULL)
-		return FALSE;
-
-	va_startlinear(tags, pcd);
-	result = DoMethod(OBJ(MENUSTRIP), MM_NEWMENU, 0, va_getlinearva(tags, struct TagItem *));
+	va_startlinear(tags, menustrip);
+	result = DoMethod(menustrip, MM_NEWMENU, 0, va_getlinearva(tags, struct TagItem *));
 	va_end(tags);
 
 	return result;
+}
+
+static Object *create_menu(struct PlayCDDAData *pcd) {
+	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
+	Object             *menustrip;
+	Object             *sub_menu, *menu_item;
+	BOOL                done;
+	struct List        *list;
+	struct Node        *node;
+	int                 index;
+	struct CDROMDrive  *cdd;
+	char                label[256];
+
+	menustrip = NewObject(NULL, "menuclass", MA_Type, T_ROOT, TAG_END);
+	if (menustrip == NULL)
+		return NULL;
+
+	done = DoNewMenu(pcd, menustrip,
+		NM_Menu, "PlayCDDA", MA_ID, MID_PROJECT_MENU,
+			NM_Item, STR(PROJECT_ABOUT), MA_Key, "?", MA_ID, MID_PROJECT_ABOUT,
+			NM_Item, ML_SEPARATOR,
+			NM_Item, STR(PROJECT_ICONIFY), MA_Key, "I", MA_ID, MID_PROJECT_ICONIFY,
+			NM_Item, ML_SEPARATOR,
+			NM_Item, STR(PROJECT_CDROMDRIVE), MA_ID, MID_PROJECT_CDROMDRIVE,
+			NM_Item, ML_SEPARATOR,
+			NM_Item, STR(PROJECT_QUIT), MA_Key, "Q", MA_ID, MID_PROJECT_QUIT,
+		TAG_END);
+	if (!done) {
+		DisposeObject(menustrip);
+		return NULL;
+	}
+
+	list     = &pcd->pcd_CDDrives;
+	index    = 0;
+	sub_menu = (Object *)DoMethod(menustrip, MM_FINDID, 0, MID_PROJECT_CDROMDRIVE);
+	if (sub_menu == NULL) {
+		DisposeObject(menustrip);
+		return NULL;
+	}
+
+	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
+		cdd = (struct CDROMDrive *)node;
+
+		snprintf(label, sizeof(label), "%s [%s:%lu]", node->ln_Name, cdd->cdd_Device, cdd->cdd_Unit);
+
+		menu_item = NewObject(NULL, "menuclass",
+			MA_Type,     T_ITEM,
+			MA_Label,    strdup(label),
+			MA_ID,       MID_PROJECT_CDROMDRIVE_01 + index,
+			MA_MX,       ~(1 << index),
+			MA_Selected, (cdd == pcd->pcd_CurrentDrive),
+			MA_UserData, cdd,
+			TAG_END);
+		if (menu_item == NULL) {
+			DisposeObject(menustrip);
+			return NULL;
+		}
+
+		SetAttrs(sub_menu, MA_AddChild, menu_item, TAG_END);
+
+		if (++index >= 32)
+			break;
+	}
+
+	return menustrip;
 }
 
 static BOOL file_exists(const char *path) {
@@ -226,13 +287,6 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 	Object             *sub_layout_1;
 	Object             *sub_layout_2;
 	Object             *sub_layout_3, *volume_label;
-	BOOL                menu_done;
-	struct List        *list;
-	struct Node        *node;
-	int                 index;
-	struct CDROMDrive  *cdd;
-	char                label[256];
-	Object             *sub_menu, *menu_item;
 	int                 num_buttons;
 
 	IntuitionBase = OpenLibrary("intuition.library", 53);
@@ -283,46 +337,9 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 	if (pcg->pcg_Screen == NULL)
 		return FALSE;
 
-	menu_done = create_menu(pcd,
-		NM_Menu, "PlayCDDA", MA_ID, MID_PROJECT_MENU,
-			NM_Item, STR(PROJECT_ABOUT), MA_Key, "?", MA_ID, MID_PROJECT_ABOUT,
-			NM_Item, ML_SEPARATOR,
-			NM_Item, STR(PROJECT_ICONIFY), MA_Key, "I", MA_ID, MID_PROJECT_ICONIFY,
-			NM_Item, ML_SEPARATOR,
-			NM_Item, STR(PROJECT_CDROMDRIVE), MA_ID, MID_PROJECT_CDROMDRIVE,
-			NM_Item, ML_SEPARATOR,
-			NM_Item, STR(PROJECT_QUIT), MA_Key, "Q", MA_ID, MID_PROJECT_QUIT,
-		TAG_END);
-	if (!menu_done)
+	OBJ(MENUSTRIP) = create_menu(pcd);
+	if (OBJ(MENUSTRIP) == NULL)
 		return FALSE;
-
-	list     = &pcd->pcd_CDDrives;
-	index    = 0;
-	sub_menu = (Object *)DoMethod(OBJ(MENUSTRIP), MM_FINDID, 0, MID_PROJECT_CDROMDRIVE);
-	if (sub_menu == NULL)
-		return FALSE;
-
-	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
-		cdd = (struct CDROMDrive *)node;
-
-		snprintf(label, sizeof(label), "%s [%s:%lu]", node->ln_Name, cdd->cdd_Device, cdd->cdd_Unit);
-
-		menu_item = NewObject(NULL, "menuclass",
-			MA_Type,     T_ITEM,
-			MA_Label,    strdup(label),
-			MA_ID,       MID_PROJECT_CDROMDRIVE_01 + index,
-			MA_MX,       ~(1 << index),
-			MA_Selected, (cdd == pcd->pcd_CurrentDrive),
-			MA_UserData, cdd,
-			TAG_END);
-		if (menu_item == NULL)
-			return FALSE;
-
-		SetAttrs(sub_menu, MA_AddChild, menu_item, TAG_END);
-
-		if (++index >= 32)
-			break;
-	}
 
 	NewList(&pcg->pcg_ButtonList);
 
