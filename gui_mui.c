@@ -103,30 +103,6 @@ static Object *create_menu(struct PlayCDDAData *pcd) {
 		MUIA_Menuitem_Title,    STR(PROJECT_CDROMDRIVE),
 		TAG_END);
 
-	list  = &pcd->pcd_CDDrives;
-	index = 0;
-
-	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
-		cdd = (struct CDROMDrive *)node;
-
-		snprintf(label, sizeof(label), "%s [%s:%lu]", node->ln_Name, cdd->cdd_Device, (unsigned long)cdd->cdd_Unit);
-
-		menu_item = MUI_NewObject(MUIC_Menuitem,
-			MUIA_UserData,         cdd,
-			MUIA_Menuitem_Title,   strdup(label),
-			MUIA_Menuitem_Exclude, ~(1 << index),
-			MUIA_Menuitem_Checkit, TRUE,
-			MUIA_Menuitem_Checked, (cdd == pcd->pcd_CurrentDrive),
-			TAG_END);
-		if (menu_item == NULL)
-			return FALSE;
-
-		DoMethod(cdrom_menu, MUIM_Family_AddTail, menu_item);
-
-		if (++index >= 32)
-			break;
-	}
-
 	separator_3 = MUI_NewObject(MUIC_Menuitem,
 		MUIA_Menuitem_Title,    NM_BARLABEL,
 		TAG_END);
@@ -150,6 +126,32 @@ static Object *create_menu(struct PlayCDDAData *pcd) {
 	menustrip = MUI_NewObject(MUIC_Menustrip,
 		MUIA_Family_Child, project_menu,
 		TAG_END);
+
+	list  = &pcd->pcd_CDDrives;
+	index = 0;
+
+	for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
+		cdd = (struct CDROMDrive *)node;
+
+		snprintf(label, sizeof(label), "%s [%s:%lu]", node->ln_Name, cdd->cdd_Device, (unsigned long)cdd->cdd_Unit);
+
+		menu_item = MUI_NewObject(MUIC_Menuitem,
+			MUIA_UserData,         cdd,
+			MUIA_Menuitem_Title,   strdup(label),
+			MUIA_Menuitem_Exclude, ~(1 << index),
+			MUIA_Menuitem_Checkit, TRUE,
+			MUIA_Menuitem_Checked, (cdd == pcd->pcd_CurrentDrive),
+			TAG_END);
+		if (menu_item == NULL) {
+			DisposeObject(menustrip);
+			return NULL;
+		}
+
+		DoMethod(cdrom_menu, MUIM_Family_AddTail, menu_item);
+
+		if (++index >= 32)
+			break;
+	}
 
 	return menustrip;
 }
@@ -266,6 +268,8 @@ BOOL create_gui(struct PlayCDDAData *pcd) {
 	Object             *sub_layout_3, *volume_label;
 
 	OBJ(MENUSTRIP) = create_menu(pcd);
+	if (OBJ(MENUSTRIP) == NULL)
+		return FALSE;
 
 	OBJ(STATUS_DISPLAY) = MUI_NewObject(MUIC_Text,
 		MUIA_Frame,         MUIV_Frame_Text,
