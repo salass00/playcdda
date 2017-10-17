@@ -15,7 +15,7 @@ ifeq ($(HOST),m68k-amigaos)
 	LDFLAGS := -noixemul $(LDFLAGS)
 endif
 
-SRCS := main.c locale.c iorequest.c ahi.c cdrom.c gui_reaction.c gui_mui.c player_proc.c
+SRCS := main.c locale.c iorequest.c ahi.c cdrom.c gui_reaction.c gui_mui.c player_proc.c strlcpy.c
 OBJS := $(SRCS:.c=.o)
 
 .PHONY: all

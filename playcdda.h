@@ -183,5 +183,8 @@ int main_loop(struct PlayCDDAData *pcd);
 void set_volume(struct PlayCDDAData *pcd, int volume);
 int get_volume(const struct PlayCDDAData *pcd);
 
+size_t strlcpy(char *dst, const char *src, size_t size);
+size_t strlcat(char *dst, const char *src, size_t size);
+
 #endif /* PLAYCDDA_H */
 
