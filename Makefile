@@ -24,10 +24,8 @@ all: $(TARGET)
 locale.h: $(TARGET).cd
 	catcomp $< --cfile $@
 
-init.o: $(TARGET)_rev.h
-
+main.o: $(TARGET)_rev.h
 gui_reaction.o gui_mui.o: $(TARGET)_rev.h locale.h
-
 $(OBJS): playcdda.h
 
 $(TARGET): $(OBJS)
