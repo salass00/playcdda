@@ -26,7 +26,7 @@ locale.h: $(TARGET).cd
 
 main.o: $(TARGET)_rev.h
 gui_reaction.o gui_mui.o: $(TARGET)_rev.h locale.h
-$(OBJS): playcdda.h
+$(OBJS): playcdda.h gui_reaction.h gui_mui.h
 
 $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@.debug $^ $(LIBS)
