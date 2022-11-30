@@ -74,6 +74,12 @@ struct CDROMDrive {
 	ULONG        cdd_Flags;
 };
 
+struct PlayCDDATOC {
+	UBYTE toc_NumTracks;
+	UBYTE toc_Flags[32];
+	ULONG toc_Addr[32];
+};
+
 typedef enum {
 	PCC_INVALID,
 	PCC_STARTUP,

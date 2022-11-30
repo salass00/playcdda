@@ -332,3 +332,55 @@ void close_cdrom_drive(struct PlayCDDAData *pcd) {
 	}
 }
 
+BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
+	struct IOStdReq *ioreq;
+	struct SCSICmd   scsicmd;
+	UBYTE            buffer[268];
+	UBYTE            sensebuffer[128];
+	UBYTE            cmd[10]  = { 0x43, 0, 0, 0, 0, 0, 0, 0x03, 0x24, 0 };
+	int              tocsize, tracks, i;
+	int              off;
+
+	memset(toc, 0, sizeof(*toc));
+
+	ioreq = pcd->pcd_CDReq;
+	if (ioreq == NULL)
+		return FALSE;
+
+	memset(&scsicmd, 0, sizeof(scsicmd));
+
+	scsicmd.scsi_Data        = (UWORD *)buffer;
+	scsicmd.scsi_Length      = sizeof(buffer);
+	scsicmd.scsi_SenseData   = sensebuffer;
+	scsicmd.scsi_SenseLength = sizeof(sensebuffer);
+	scsicmd.scsi_Command     = cmd;
+	scsicmd.scsi_CmdLength   = sizeof(cmd);
+	scsicmd.scsi_Flags       = SCSIF_READ | SCSIF_AUTOSENSE;
+
+	ioreq->io_Command = HD_SCSICMD;
+	ioreq->io_Data    = &scsicmd;
+	ioreq->io_Length  = sizeof(scsicmd);
+
+	if (DoIO((struct IORequest *)ioreq) != 0)
+		return FALSE;
+
+	tocsize = ((unsigned)buffer[0] << 8)
+	        |  (unsigned)buffer[1];
+	if (tocsize < 10)
+		return FALSE;
+
+	tracks = (unsigned)(tocsize - 2) >> 3;
+	toc->toc_NumTracks = tracks - 1;
+
+	for (i = 0; i < tracks; i++) {
+		off = 4 + ((unsigned)i << 3);
+		toc->toc_Flags[i] = (buffer[off + 1] & 4) >> 2;
+		toc->toc_Addr[i] = ((ULONG)buffer[off + 4] << 24)
+		                 | ((ULONG)buffer[off + 5] << 16)
+		                 | ((ULONG)buffer[off + 6] << 8)
+		                 |  (ULONG)buffer[off + 7];
+	}
+
+	return TRUE;
+}
+

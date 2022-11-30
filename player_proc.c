@@ -499,7 +499,7 @@ cleanup:
 	return rc;
 }
 
-static BOOL start_player_proc(struct PlayCDDAData *pcd) {
+static BOOL UNUSED start_player_proc(struct PlayCDDAData *pcd) {
 	struct PlayCDDAPlayerData *pcpd = &pcd->pcd_PlayerData;
 	struct Process            *proc;
 
@@ -552,7 +552,7 @@ cleanup:
 	return FALSE;
 }
 
-static void kill_player_proc(struct PlayCDDAData *pcd) {
+static void UNUSED kill_player_proc(struct PlayCDDAData *pcd) {
 	struct PlayCDDAPlayerData *pcpd = &pcd->pcd_PlayerData;
 
 	if (pcpd->pcpd_ProcessID == 0)

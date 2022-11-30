@@ -538,6 +538,12 @@ int main_loop(struct PlayCDDAData *pcd) {
 								case MID_PROJECT_QUIT:
 									done = TRUE;
 									break;
+
+								default:
+									if (menu_id >= MID_PROJECT_CDROMDRIVE_01 && menu_id <= MID_PROJECT_CDROMDRIVE_32) {
+										/* FIXME: Implement CD-ROM drive selection */
+									}
+									break;
 							}
 						}
 						break;
