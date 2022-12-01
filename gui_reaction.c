@@ -250,7 +250,6 @@ static Object *create_track_buttons(struct PlayCDDAData *pcd, int columns, int r
 	if (table_layout == NULL)
 		goto cleanup;
 
-	i = 0;
 	for (c = 0; c < columns; c++) {
 		column_layout = NewObject(LayoutClass, NULL, LAYOUT_Orientation, LAYOUT_ORIENT_VERT, TAG_END);
 		if (column_layout == NULL)
@@ -258,7 +257,9 @@ static Object *create_track_buttons(struct PlayCDDAData *pcd, int columns, int r
 
 		SetAttrs(table_layout, LAYOUT_AddChild, column_layout, TAG_END);
 
-		for (r = 0; r < rows; r++, i++) {
+		for (r = 0; r < rows; r++) {
+			i = ((unsigned)r * columns) + c;
+
 			button = NewObject(ButtonClass, NULL,
 				GA_ID,          OID_TRACK01 + i,
 				GA_RelVerify,   TRUE,
