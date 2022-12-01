@@ -67,6 +67,9 @@
 #define CurrentDir(dir) SetCurrentDir(dir)
 #endif
 
+#define MAX_DRIVES 32
+#define MAX_TRACKS 32
+
 struct CDROMDrive {
 	struct Node  cdd_Node;
 	CONST_STRPTR cdd_Device;
@@ -75,9 +78,15 @@ struct CDROMDrive {
 };
 
 struct PlayCDDATOC {
-	UBYTE toc_NumTracks;
-	UBYTE toc_Flags[32];
+	UWORD toc_NumTracks;
+	UBYTE toc_TrackType[32];
 	ULONG toc_Addr[32];
+};
+
+enum {
+	TRACK_INVALID,
+	TRACK_CDDA,
+	TRACK_DATA
 };
 
 typedef enum {
@@ -181,6 +190,7 @@ BOOL get_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd);
 void close_cdrom_drive(struct PlayCDDAData *pcd);
+BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc);
 
 BOOL create_gui(struct PlayCDDAData *pcd);
 void destroy_gui(struct PlayCDDAData *pcd);

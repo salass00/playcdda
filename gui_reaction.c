@@ -498,14 +498,22 @@ void destroy_gui(struct PlayCDDAData *pcd) {
 		CloseLibrary(IntuitionBase);
 }
 
+void update_gui(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
+	/* FIXME: Implement this function */
+}
+
 int main_loop(struct PlayCDDAData *pcd) {
 	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
+	struct PlayCDDATOC toc;
 	struct Window *window;
 	ULONG sigmask, signals, result;
 	UWORD code;
 	BOOL  done = FALSE;
 	int   menu_id;
 	int   gadget_id;
+
+	read_toc(pcd, &toc);
+	update_gui(pcd, &toc);
 
 	while (!done) {
 		GetAttr(WINDOW_SigMask, OBJ(WINDOW), &sigmask);
