@@ -46,6 +46,9 @@ struct IORequest *create_iorequest(struct MsgPort *port, ULONG size) {
 }
 
 struct IORequest *copy_iorequest(const struct IORequest *original) {
+	if (original == NULL)
+		return NULL;
+
 	return AllocSysObjectTags(ASOT_IOREQUEST,
 		ASOIOR_Duplicate, original,
 		TAG_END);
@@ -76,6 +79,9 @@ struct IORequest *create_iorequest(struct MsgPort *port, ULONG size) {
 struct IORequest *copy_iorequest(const struct IORequest *original) {
 	ULONG             size = original->io_Message.mn_Length;
 	struct IORequest *ioreq;
+
+	if (original == NULL)
+		return NULL;
 
 	ioreq = alloc_shared_mem(size);
 

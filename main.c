@@ -116,6 +116,7 @@ static void free_icon(struct PlayCDDAData *pcd) {
 
 int main(int argc, char **argv) {
 	struct PlayCDDAData *pcd;
+	struct CDROMDrive *cdd;
 	int rc = RETURN_ERROR;
 
 	pcd = alloc_shared_mem(sizeof(*pcd));
@@ -134,6 +135,10 @@ int main(int argc, char **argv) {
 	if (!open_ahi(pcd))
 		goto cleanup;
 
+	pcd->pcd_DCSignal = AllocSignal(-1);
+	if (pcd->pcd_DCSignal == -1)
+		goto cleanup;
+
 	if (!get_cdrom_drives(pcd, &pcd->pcd_CDDrives))
 		goto cleanup;
 
@@ -141,13 +146,13 @@ int main(int argc, char **argv) {
 		goto cleanup;
 
 	/* Default to drive CD0: */
-	pcd->pcd_CurrentDrive = (struct CDROMDrive *)FindName(&pcd->pcd_CDDrives, (CONST_STRPTR)"CD0");
+	cdd = (struct CDROMDrive *)FindName(&pcd->pcd_CDDrives, (CONST_STRPTR)"CD0");
 
 	/* If not available use the first CD drive in the list */
-	if (pcd->pcd_CurrentDrive == NULL)
-		pcd->pcd_CurrentDrive = (struct CDROMDrive *)GetHead(&pcd->pcd_CDDrives);
+	if (cdd == NULL)
+		cdd = (struct CDROMDrive *)GetHead(&pcd->pcd_CDDrives);
 
-	if (!open_cdrom_drive(pcd, pcd->pcd_CurrentDrive))
+	if (!open_cdrom_drive(pcd, cdd))
 		goto cleanup;
 
 	set_volume(pcd, 64); /* Full volume */
@@ -164,6 +169,8 @@ cleanup:
 		close_cdrom_drive(pcd);
 
 		free_cdrom_drives(pcd, &pcd->pcd_CDDrives);
+
+		FreeSignal(pcd->pcd_DCSignal);
 
 		close_ahi(pcd);
 

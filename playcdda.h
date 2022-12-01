@@ -154,6 +154,10 @@ struct PlayCDDAData {
 	struct MsgPort           *pcd_CDPort;
 	struct IOStdReq          *pcd_CDReq;
 
+	BYTE                      pcd_DCSignal;
+	struct Interrupt         *pcd_DCInterrupt;
+	struct IOStdReq          *pcd_DCReq;
+
 	struct PlayCDDAGUI        pcd_GUIData;
 
 	struct PlayCDDAPlayerData pcd_PlayerData;
@@ -188,7 +192,7 @@ void stop_playback(struct PlayCDDAData *pcd, BOOL force);
 
 BOOL get_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
 void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list);
-BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd);
+BOOL open_cdrom_drive(struct PlayCDDAData *pcd, struct CDROMDrive *cdd);
 void close_cdrom_drive(struct PlayCDDAData *pcd);
 BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc);
 

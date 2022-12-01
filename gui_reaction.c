@@ -530,18 +530,20 @@ int main_loop(struct PlayCDDAData *pcd) {
 	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
 	struct PlayCDDATOC toc;
 	struct Window *window;
-	ULONG sigmask, signals, result;
+	ULONG sigmask, dcsignal, signals, result;
 	UWORD code;
 	BOOL  done = FALSE;
 	int   menu_id;
 	int   gadget_id;
+
+	dcsignal = (ULONG)1 << pcd->pcd_DCSignal;
 
 	read_toc(pcd, &toc);
 	update_gui(pcd, &toc);
 
 	while (!done) {
 		GetAttr(WINDOW_SigMask, OBJ(WINDOW), &sigmask);
-		signals = Wait(sigmask | SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F);
+		signals = Wait(sigmask | dcsignal | SIGBREAKF_CTRL_C | SIGBREAKF_CTRL_F);
 
 		if (signals & SIGBREAKF_CTRL_C)
 			done = TRUE;
@@ -550,6 +552,11 @@ int main_loop(struct PlayCDDAData *pcd) {
 			window = (struct Window *)DoMethod(OBJ(WINDOW), WM_OPEN, NULL);
 			if (window != NULL)
 				ScreenToFront(window->WScreen);
+		}
+
+		if (signals & dcsignal) {
+			read_toc(pcd, &toc);
+			update_gui(pcd, &toc);
 		}
 
 		if (signals & sigmask) {
@@ -573,16 +580,15 @@ int main_loop(struct PlayCDDAData *pcd) {
 
 								default:
 									if (menu_id >= MID_PROJECT_CDROMDRIVE_01 && menu_id <= MID_PROJECT_CDROMDRIVE_32) {
-										struct CDROMDrive *drive;
+										struct CDROMDrive *cdd;
 
-										drive = (struct CDROMDrive *)get_nth_node(&pcd->pcd_CDDrives,
+										cdd = (struct CDROMDrive *)get_nth_node(&pcd->pcd_CDDrives,
 											menu_id - MID_PROJECT_CDROMDRIVE_01);
-										if (drive != NULL && drive != pcd->pcd_CurrentDrive) {
+										if (cdd != NULL && cdd != pcd->pcd_CurrentDrive) {
 											close_cdrom_drive(pcd);
 
-											pcd->pcd_CurrentDrive = drive;
 											/* FIXME: Add error handling */
-											open_cdrom_drive(pcd, pcd->pcd_CurrentDrive);
+											open_cdrom_drive(pcd, cdd);
 
 											read_toc(pcd, &toc);
 											update_gui(pcd, &toc);

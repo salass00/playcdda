@@ -256,7 +256,103 @@ void free_cdrom_drives(struct PlayCDDAData *pcd, struct List *list) {
 	}
 }
 
-BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd) {
+struct DCInterrupt {
+	struct Interrupt dci_Interrupt;
+	struct Task     *dci_Task;
+	ULONG            dci_Signal;
+};
+
+ULONG diskchange_func(ULONG unused, struct ExecBase *SysBase, struct DCInterrupt *dci) {
+	struct ExecIFace *IExec = (struct ExecIFace *)SysBase->MainInterface;
+
+	Signal(dci->dci_Task, dci->dci_Signal);
+
+	return 0;
+}
+
+static void rem_dc_handler(struct PlayCDDAData *pcd) {
+	if (pcd->pcd_DCReq != NULL) {
+		struct IOStdReq *dcreq = pcd->pcd_DCReq;
+
+		if (CheckIO((struct IORequest *)dcreq) == NULL) {
+			dcreq->io_Command = TD_REMCHANGEINT;
+			DoIO((struct IORequest *)dcreq);
+		} else {
+			WaitIO((struct IORequest *)dcreq);
+		}
+
+		delete_iorequest_copy((struct IORequest *)dcreq);
+		pcd->pcd_DCReq = NULL;
+	}
+
+	if (pcd->pcd_DCInterrupt != NULL) {
+#ifdef __amigaos4__
+		FreeSysObject(ASOT_INTERRUPT, pcd->pcd_DCInterrupt);
+#else
+		free_shared_mem(pcd->pcd_DCInterrupt, sizeof(struct DCInterrupt));
+#endif
+		pcd->pcd_DCInterrupt = NULL;
+	}
+}
+
+static BOOL add_dc_handler(struct PlayCDDAData *pcd) {
+	struct DCInterrupt *dci;
+	struct IOStdReq  *dcreq;
+
+	rem_dc_handler(pcd);
+
+	if (pcd->pcd_CDReq == NULL)
+		return FALSE;
+
+#ifdef __amigaos4__
+	dci = AllocSysObjectTags(ASOT_INTERRUPT,
+		ASOINTR_Size,    sizeof(*dci),
+		ASOINTR_SoftInt, TRUE,
+		ASOINTR_Code,    diskchange_func,
+		/* ASOINTR_Data is set in the code below */
+		TAG_END);
+	if (dci == NULL)
+		goto cleanup;
+#else
+	dci = alloc_shared_mem(sizeof(*dci));
+	if (dci == NULL)
+		goto cleanup;
+
+	memset(dci, 0, sizeof(*dci));
+
+	dci->dci_Interrupt.is_Node.ln_Type = NT_UNKNOWN;
+	dci->dci_Interrupt.is_Code = diskchange_func;
+#endif
+
+	dci->dci_Interrupt.is_Node.ln_Pri  = 0;
+	dci->dci_Interrupt.is_Node.ln_Name = (STRPTR)"PlayCDDA disk change interrupt";
+	dci->dci_Interrupt.is_Data = dci;
+
+	dci->dci_Task   = FindTask(NULL);
+	dci->dci_Signal = (ULONG)1 << pcd->pcd_DCSignal;
+
+	pcd->pcd_DCInterrupt = (struct Interrupt *)dci;
+
+	dcreq = (struct IOStdReq *)copy_iorequest((struct IORequest *)pcd->pcd_CDReq);
+	if (dcreq == NULL)
+		goto cleanup;
+
+	pcd->pcd_DCReq = dcreq;
+
+	dcreq->io_Command = TD_ADDCHANGEINT;
+	dcreq->io_Data    = dci;
+	dcreq->io_Length  = sizeof(struct Interrupt);
+
+	SendIO((struct IORequest *)dcreq);
+
+	return TRUE;
+
+cleanup:
+	rem_dc_handler(pcd);
+	return FALSE;
+}
+
+BOOL open_cdrom_drive(struct PlayCDDAData *pcd, struct CDROMDrive *cdd) {
 	struct IOStdReq            *ioreq;
 	struct NSDeviceQueryResult  nsdqr;
 	struct DriveGeometry        dg;
@@ -267,11 +363,11 @@ BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd) {
 	if (pcd->pcd_CDPort == NULL)
 		goto cleanup;
 
-	pcd->pcd_CDReq = (struct IOStdReq *)create_iorequest(pcd->pcd_CDPort, sizeof(struct IOStdReq));
-	if (pcd->pcd_CDReq == NULL)
+	ioreq = (struct IOStdReq *)create_iorequest(pcd->pcd_CDPort, sizeof(struct IOStdReq));
+	if (ioreq == NULL)
 		goto cleanup;
 
-	ioreq = pcd->pcd_CDReq;
+	pcd->pcd_CDReq = ioreq;
 
 	if (OpenDevice((CONST_STRPTR)cdd->cdd_Device, cdd->cdd_Unit, (struct IORequest *)ioreq, cdd->cdd_Flags) != 0) {
 		ioreq->io_Device = NULL;
@@ -310,6 +406,10 @@ BOOL open_cdrom_drive(struct PlayCDDAData *pcd, const struct CDROMDrive *cdd) {
 	if (dg.dg_DeviceType != DG_CDROM)
 		goto cleanup;
 
+	pcd->pcd_CurrentDrive = cdd;
+
+	add_dc_handler(pcd);
+
 	return TRUE;
 
 cleanup:
@@ -319,6 +419,8 @@ cleanup:
 
 void close_cdrom_drive(struct PlayCDDAData *pcd) {
 	if (pcd->pcd_CDReq != NULL) {
+		rem_dc_handler(pcd);
+
 		if (pcd->pcd_CDReq->io_Device != NULL)
 			CloseDevice((struct IORequest *)pcd->pcd_CDReq);
 

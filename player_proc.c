@@ -571,7 +571,7 @@ void set_volume(struct PlayCDDAData *pcd, int volume) {
 	struct PlayCDDAPlayerData *pcpd = &pcd->pcd_PlayerData;
 
 	if (volume >= 0 && volume <= 64) {
-		pcpd->pcpd_Volume = volume << 10;
+		pcpd->pcpd_Volume = (ULONG)volume << 10;
 	}
 }
 
