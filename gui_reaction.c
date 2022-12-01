@@ -244,30 +244,31 @@ static Object *create_track_buttons(struct PlayCDDAData *pcd, int columns, int r
 	Object *table_layout;
 	Object *column_layout;
 	Object *button;
-	int     i, j, index;
+	int     c, r, i;
 
 	table_layout = NewObject(LayoutClass, NULL, TAG_END);
 	if (table_layout == NULL)
 		goto cleanup;
 
-	for (i = 0; i < columns; i++) {
+	i = 0;
+	for (c = 0; c < columns; c++) {
 		column_layout = NewObject(LayoutClass, NULL, LAYOUT_Orientation, LAYOUT_ORIENT_VERT, TAG_END);
 		if (column_layout == NULL)
 			goto cleanup;
 
 		SetAttrs(table_layout, LAYOUT_AddChild, column_layout, TAG_END);
 
-		for (j = 0; j < rows; j++) {
-			index = (j * columns) + i;
-
+		for (r = 0; r < rows; r++, i++) {
 			button = NewObject(ButtonClass, NULL,
-				GA_ID,          OID_TRACK01 + index,
+				GA_ID,          OID_TRACK01 + i,
 				GA_RelVerify,   TRUE,
 				GA_Disabled,    TRUE,
-				BUTTON_Integer, index + 1,
+				BUTTON_Integer, i + 1,
 				TAG_END);
 			if (button == NULL)
 				goto cleanup;
+
+			OBJ(TRACK01 + i) = button;
 
 			SetAttrs(column_layout, LAYOUT_AddChild, button, TAG_END);
 		}
@@ -499,7 +500,17 @@ void destroy_gui(struct PlayCDDAData *pcd) {
 }
 
 void update_gui(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
-	/* FIXME: Implement this function */
+	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
+	struct Window *window;
+	int i;
+
+	GetAttr(WINDOW_Window, OBJ(WINDOW), (APTR)&window);
+
+	for (i = 0; i < MAX_TRACKS; i++) {
+		SetGadgetAttrs((struct Gadget *)OBJ(TRACK01 + i), window, NULL,
+			GA_Disabled, (toc->toc_Type[i] == TRACK_CDDA) ? FALSE : TRUE,
+			TAG_END);
+	}
 }
 
 int main_loop(struct PlayCDDAData *pcd) {

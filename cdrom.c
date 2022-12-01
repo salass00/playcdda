@@ -333,13 +333,13 @@ void close_cdrom_drive(struct PlayCDDAData *pcd) {
 }
 
 BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
-	struct IOStdReq *ioreq;
-	struct SCSICmd   scsicmd;
-	UBYTE            buffer[2 + (MAX_TRACKS + 1) * 8];
-	UBYTE            sensebuffer[128];
-	UBYTE            cmd[10]  = { 0x43, 0, 0, 0, 0, 0, 0, 0x03, 0x24, 0 };
-	int              tocsize, tracks, i;
-	int              off;
+	struct IOStdReq   *ioreq;
+	struct SCSICmd     scsicmd;
+	UBYTE              buffer[4 + (MAX_TRACKS + 1) * 8];
+	UBYTE              sensebuffer[128];
+	static const UBYTE cmd[10] = { 0x43, 0, 0, 0, 0, 0, 0, 0x03, 0x24, 0 };
+	int                tocsize, tracks, i;
+	int                bp;
 
 	memset(toc, 0, sizeof(*toc));
 
@@ -353,7 +353,7 @@ BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
 	scsicmd.scsi_Length      = sizeof(buffer);
 	scsicmd.scsi_SenseData   = sensebuffer;
 	scsicmd.scsi_SenseLength = sizeof(sensebuffer);
-	scsicmd.scsi_Command     = cmd;
+	scsicmd.scsi_Command     = (UBYTE *)cmd;
 	scsicmd.scsi_CmdLength   = sizeof(cmd);
 	scsicmd.scsi_Flags       = SCSIF_READ | SCSIF_AUTOSENSE;
 
@@ -372,21 +372,20 @@ BOOL read_toc(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
 	tracks = (unsigned)(tocsize - 10) >> 3;
 	toc->toc_NumTracks = tracks;
 
-	for (i = 0; i < tracks; i++) {
-		off = 4 + ((unsigned)i << 3);
+	bp = 4;
+	for (i = 0; i < tracks; i++, bp += 8) {
+		toc->toc_Type[i] = (buffer[bp + 1] & 4) ? TRACK_DATA : TRACK_CDDA;
 
-		toc->toc_Type[i] = (buffer[off + 1] & 4) ? TRACK_DATA : TRACK_CDDA;
-
-		toc->toc_Addr[i] = ((ULONG)buffer[off + 4] << 24)
-		                 | ((ULONG)buffer[off + 5] << 16)
-		                 | ((ULONG)buffer[off + 6] << 8)
-		                 |  (ULONG)buffer[off + 7];
+		toc->toc_Addr[i] = ((ULONG)buffer[bp + 4] << 24)
+		                 | ((ULONG)buffer[bp + 5] << 16)
+		                 | ((ULONG)buffer[bp + 6] << 8)
+		                 |  (ULONG)buffer[bp + 7];
 	}
 
-	toc->toc_Addr[i] = ((ULONG)buffer[off + 4] << 24)
-	                 | ((ULONG)buffer[off + 5] << 16)
-	                 | ((ULONG)buffer[off + 6] << 8)
-	                 |  (ULONG)buffer[off + 7];
+	toc->toc_Addr[i] = ((ULONG)buffer[bp + 4] << 24)
+	                 | ((ULONG)buffer[bp + 5] << 16)
+	                 | ((ULONG)buffer[bp + 6] << 8)
+	                 |  (ULONG)buffer[bp + 7];
 
 	return TRUE;
 }

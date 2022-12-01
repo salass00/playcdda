@@ -78,9 +78,9 @@ struct CDROMDrive {
 };
 
 struct PlayCDDATOC {
-	UWORD toc_NumTracks;
-	UBYTE toc_TrackType[32];
-	ULONG toc_Addr[32];
+	UBYTE toc_NumTracks;
+	UBYTE toc_Type[MAX_TRACKS + 1];
+	ULONG toc_Addr[MAX_TRACKS + 1];
 };
 
 enum {
