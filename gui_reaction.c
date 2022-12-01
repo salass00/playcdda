@@ -499,7 +499,7 @@ void destroy_gui(struct PlayCDDAData *pcd) {
 		CloseLibrary(IntuitionBase);
 }
 
-void update_gui(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
+static void update_gui(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
 	struct PlayCDDAGUI *pcg = &pcd->pcd_GUIData;
 	struct Window *window;
 	int i;
@@ -511,6 +511,18 @@ void update_gui(struct PlayCDDAData *pcd, struct PlayCDDATOC *toc) {
 			GA_Disabled, (toc->toc_Type[i] == TRACK_CDDA) ? FALSE : TRUE,
 			TAG_END);
 	}
+}
+
+static struct Node *get_nth_node(struct List *list, int i) {
+	struct Node *node;
+
+	for (node = list->lh_Head; node->ln_Succ != NULL; node = node->ln_Succ) {
+		if (i == 0)
+			break;
+		i--;
+	}
+
+	return node;
 }
 
 int main_loop(struct PlayCDDAData *pcd) {
@@ -560,7 +572,20 @@ int main_loop(struct PlayCDDAData *pcd) {
 
 								default:
 									if (menu_id >= MID_PROJECT_CDROMDRIVE_01 && menu_id <= MID_PROJECT_CDROMDRIVE_32) {
-										/* FIXME: Implement CD-ROM drive selection */
+										struct CDROMDrive *drive;
+
+										drive = (struct CDROMDrive *)get_nth_node(&pcd->pcd_CDDrives,
+											menu_id - MID_PROJECT_CDROMDRIVE_01);
+										if (drive != NULL && drive != pcd->pcd_CurrentDrive) {
+											close_cdrom_drive(pcd);
+
+											pcd->pcd_CurrentDrive = drive;
+											/* FIXME: Add error handling */
+											open_cdrom_drive(pcd, pcd->pcd_CurrentDrive);
+
+											read_toc(pcd, &toc);
+											update_gui(pcd, &toc);
+										}
 									}
 									break;
 							}
